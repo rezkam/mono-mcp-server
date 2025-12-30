@@ -1,5 +1,5 @@
 {
-  "name": "@rezakam/mono-mcp-server",
+  "name": "@rezkam/mono-mcp-server",
   "version": "0.1.0",
   "description": "MCP server for Mono task management - enables LLMs to manage tasks and create daily plans",
   "type": "module",

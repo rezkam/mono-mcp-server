@@ -1,4 +1,4 @@
-# @rezakam/mono-mcp-server
+# @rezkam/mono-mcp-server
 
 MCP server for [Mono](https://monodo.app) task management. Enables LLMs to manage tasks, create daily plans, and act as a personal productivity assistant.
 
@@ -12,7 +12,7 @@ MCP server for [Mono](https://monodo.app) task management. Enables LLMs to manag
 ## Installation
 
 ```bash
-npx @rezakam/mono-mcp-server
+npx @rezkam/mono-mcp-server
 ```
 
 ## Configuration
@@ -24,7 +24,7 @@ Add to your MCP client configuration (e.g., Claude Desktop `~/.config/claude/con
   "mcpServers": {
     "mono": {
       "command": "npx",
-      "args": ["@rezakam/mono-mcp-server"],
+      "args": ["@rezkam/mono-mcp-server"],
       "env": {
         "MONO_API_KEY": "sk-your-api-key-here"
       }
@@ -153,7 +153,7 @@ Set `MONO_API_URL` to your local development server:
   "mcpServers": {
     "mono": {
       "command": "npx",
-      "args": ["@rezakam/mono-mcp-server"],
+      "args": ["@rezkam/mono-mcp-server"],
       "env": {
         "MONO_API_KEY": "sk-dev-key",
         "MONO_API_URL": "http://localhost:8081/api"
