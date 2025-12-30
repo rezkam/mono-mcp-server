@@ -1,0 +1,42 @@
+{
+  "name": "@rezakam/mono-mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for Mono task management - enables LLMs to manage tasks and create daily plans",
+  "type": "module",
+  "bin": {
+    "mono-mcp-server": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "tasks",
+    "todo",
+    "ai",
+    "llm",
+    "productivity"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rezkam/mono-mcp-server"
+  },
+  "author": "rezkam",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
