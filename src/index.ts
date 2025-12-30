@@ -4,6 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { allTools, executeTool } from "./tools/index.js";
 import type { ActionableError } from "./types.js";
+import packageJson from "../package.json" with { type: "json" };
 
 // Validate configuration
 const MONO_API_KEY = process.env.MONO_API_KEY;
@@ -19,7 +20,7 @@ if (!MONO_API_KEY) {
 const server = new Server(
   {
     name: "mono-mcp-server",
-    version: "0.1.0",
+    version: packageJson.version,
   },
   {
     capabilities: {
