@@ -28,34 +28,6 @@ When you make changes to the codebase, create a changeset to describe them:
 npx changeset
 ```
 
-This interactive CLI will ask you:
-
-1. **Which packages changed?** (Press Enter to select `@rezkam/mono-mcp-server`)
-2. **What type of change?**
-   - **Major** (breaking changes): `1.0.0` → `2.0.0`
-   - **Minor** (new features): `1.0.0` → `1.1.0`
-   - **Patch** (bug fixes): `1.0.0` → `1.0.1`
-3. **Describe the change**: Write a user-facing description
-
-**Example:**
-
-```
-🦋  Which packages would you like to include?
-◉ @rezkam/mono-mcp-server
-
-🦋  Which packages should have a major bump?
-◯ @rezkam/mono-mcp-server
-
-🦋  Which packages should have a minor bump?
-◉ @rezkam/mono-mcp-server
-
-🦋  Which packages should have a patch bump?
-◯ @rezkam/mono-mcp-server
-
-🦋  Please enter a summary for this change:
-Add timeout protection to API calls
-```
-
 This creates a file in `.changeset/` like `.changeset/cool-dogs-jump.md`:
 
 ```markdown
@@ -63,7 +35,7 @@ This creates a file in `.changeset/` like `.changeset/cool-dogs-jump.md`:
 "@rezkam/mono-mcp-server": minor
 ---
 
-Add timeout protection to API calls
+Example description of the new feature added to the mono-mcp-server package.
 ```
 
 ### 2. Commit the Changeset
