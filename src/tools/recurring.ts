@@ -7,6 +7,7 @@ import {
   deleteRecurringTemplate,
 } from "../client.js";
 import { createActionableError } from "../errors.js";
+import { extractUpdateFields } from "../utils/update-mask.js";
 
 export const recurringTools: Tool[] = [
   {
@@ -273,12 +274,7 @@ export async function executeRecurringTool(name: string, args: Record<string, un
 
     case "update_recurring_template": {
       const { list_id, template_id, update_mask, ...fields } = args;
-      const template: Record<string, unknown> = {};
-      for (const field of update_mask as string[]) {
-        if (fields[field] !== undefined) {
-          template[field] = fields[field];
-        }
-      }
+      const template = extractUpdateFields(fields, update_mask as string[]);
 
       const { data, error, response } = await updateRecurringTemplate({
         path: {

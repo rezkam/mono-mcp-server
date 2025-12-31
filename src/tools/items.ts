@@ -1,6 +1,7 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { listItems, createItem, updateItem } from "../client.js";
 import { createActionableError } from "../errors.js";
+import { extractUpdateFields } from "../utils/update-mask.js";
 
 export const itemTools: Tool[] = [
   {
@@ -285,12 +286,7 @@ export async function executeItemTool(name: string, args: Record<string, unknown
 
     case "update_item": {
       const { list_id, item_id, update_mask, ...fields } = args;
-      const item: Record<string, unknown> = {};
-      for (const field of update_mask as string[]) {
-        if (fields[field] !== undefined) {
-          item[field] = fields[field];
-        }
-      }
+      const item = extractUpdateFields(fields, update_mask as string[]);
 
       const { data, error, response } = await updateItem({
         path: {

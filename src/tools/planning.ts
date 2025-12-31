@@ -1,6 +1,8 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { listItems, listLists, createItem, type TodoItem } from "../client.js";
 import { createActionableError } from "../errors.js";
+import { sortByPriorityAndDueDate, sortByDueDate } from "../utils/sorting.js";
+import { filterOverdue, filterDueSoon, getDueSoonDateRange } from "../utils/filtering.js";
 
 export const planningTools: Tool[] = [
   {
@@ -281,19 +283,7 @@ export async function executePlanningTool(name: string, args: Record<string, unk
         }
 
         // Sort by priority then due_time
-        const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
-        allItems.sort((a, b) => {
-          const aPrio = priorityOrder[a.priority || "medium"];
-          const bPrio = priorityOrder[b.priority || "medium"];
-          if (aPrio !== bPrio) return aPrio - bPrio;
-
-          if (a.due_time && b.due_time) {
-            return new Date(a.due_time).getTime() - new Date(b.due_time).getTime();
-          }
-          if (a.due_time) return -1;
-          if (b.due_time) return 1;
-          return 0;
-        });
+        allItems.sort(sortByPriorityAndDueDate);
 
         const maxItems = (args.max_items as number) || 50;
         return { items: allItems.slice(0, maxItems) };
@@ -322,7 +312,7 @@ export async function executePlanningTool(name: string, args: Record<string, unk
           });
         }
 
-        const overdue = (data!.items || []).filter((item) => item.due_time && item.due_time < now);
+        const overdue = filterOverdue(data!.items || [], new Date(now));
         return { items: overdue };
       } else {
         const { data: listsData, error: listsError, response: listsResponse } = await listLists({});
@@ -351,14 +341,11 @@ export async function executePlanningTool(name: string, args: Record<string, unk
             });
           }
 
-          const overdue = (itemsData!.items || []).filter((item) => item.due_time && item.due_time < now);
+          const overdue = filterOverdue(itemsData!.items || [], new Date(now));
           allOverdue.push(...overdue);
         }
 
-        allOverdue.sort((a, b) => {
-          if (!a.due_time || !b.due_time) return 0;
-          return new Date(a.due_time).getTime() - new Date(b.due_time).getTime();
-        });
+        allOverdue.sort(sortByDueDate);
 
         return { items: allOverdue };
       }
@@ -367,8 +354,6 @@ export async function executePlanningTool(name: string, args: Record<string, unk
     case "get_tasks_due_soon": {
       const now = new Date();
       const daysAhead = (args.days_ahead as number) || 7;
-      const future = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000).toISOString();
-      const nowISO = now.toISOString();
       const statuses = ["todo", "in_progress", "blocked"];
 
       if (args.list_id) {
@@ -389,7 +374,7 @@ export async function executePlanningTool(name: string, args: Record<string, unk
           });
         }
 
-        const dueSoon = (data!.items || []).filter((item) => item.due_time && item.due_time >= nowISO && item.due_time <= future);
+        const dueSoon = filterDueSoon(data!.items || [], daysAhead, now);
         return { items: dueSoon };
       } else {
         const { data: listsData, error: listsError, response: listsResponse } = await listLists({});
@@ -418,14 +403,11 @@ export async function executePlanningTool(name: string, args: Record<string, unk
             });
           }
 
-          const dueSoon = (itemsData!.items || []).filter((item) => item.due_time && item.due_time >= nowISO && item.due_time <= future);
+          const dueSoon = filterDueSoon(itemsData!.items || [], daysAhead, now);
           allDueSoon.push(...dueSoon);
         }
 
-        allDueSoon.sort((a, b) => {
-          if (!a.due_time || !b.due_time) return 0;
-          return new Date(a.due_time).getTime() - new Date(b.due_time).getTime();
-        });
+        allDueSoon.sort(sortByDueDate);
 
         return { items: allDueSoon };
       }
@@ -486,17 +468,7 @@ export async function executePlanningTool(name: string, args: Record<string, unk
         }
 
         // Sort by priority
-        const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
-        allItems.sort((a, b) => {
-          const aPrio = priorityOrder[a.priority || "medium"];
-          const bPrio = priorityOrder[b.priority || "medium"];
-          if (aPrio !== bPrio) return aPrio - bPrio;
-
-          if (a.due_time && b.due_time) {
-            return new Date(a.due_time).getTime() - new Date(b.due_time).getTime();
-          }
-          return 0;
-        });
+        allItems.sort(sortByPriorityAndDueDate);
 
         return { items: allItems };
       }
@@ -505,8 +477,7 @@ export async function executePlanningTool(name: string, args: Record<string, unk
     case "get_workload_summary": {
       const statuses = ["todo", "in_progress", "blocked"];
       const now = new Date();
-      const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-      const nowISO = now.toISOString();
+      const { nowISO, futureISO: oneWeekFromNow } = getDueSoonDateRange(7, now);
 
       let allItems: TodoItem[] = [];
 
