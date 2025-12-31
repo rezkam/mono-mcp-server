@@ -144,6 +144,94 @@ npm run build
 npx @modelcontextprotocol/inspector dist/index.js
 ```
 
+### Client Code Generation
+
+This project uses auto-generated TypeScript client code from the Mono API OpenAPI specification. The client code is generated from the [Mono OpenAPI spec](https://github.com/rezkam/mono/blob/main/api/openapi/mono.yaml) and should not be manually edited.
+
+#### Updating the Generated Client
+
+When the Mono API specification changes, regenerate the client:
+
+```bash
+# Generate client code from OpenAPI spec
+npm run generate
+```
+
+This will:
+1. Fetch the latest OpenAPI spec from GitHub
+2. Generate TypeScript client code to `src/generated/`
+3. Create type definitions, API functions, and client configuration
+
+The generated files are gitignored and regenerated on each build.
+
+#### Client Generation Configuration
+
+Client generation is configured in [openapi-ts.config.ts](openapi-ts.config.ts):
+
+```typescript
+import { defineConfig } from '@hey-api/openapi-ts';
+
+export default defineConfig({
+  client: 'fetch',
+  input: 'https://raw.githubusercontent.com/rezkam/mono/main/api/openapi/mono.yaml',
+  output: {
+    format: 'prettier',
+    path: './src/generated',
+  },
+  types: {
+    enums: 'javascript',
+  },
+});
+```
+
+**Key points:**
+- Uses `@hey-api/openapi-ts` for generation
+- Fetches spec directly from GitHub (always up-to-date)
+- Output directory: `src/generated/` (gitignored)
+- Client: Native fetch API (no additional dependencies)
+- Generated code is formatted with Prettier
+
+#### Architecture: Two-Layer Design
+
+The codebase follows a two-layer architecture:
+
+1. **Generated Client Layer** (`src/generated/`):
+   - Auto-generated from OpenAPI spec
+   - Provides type-safe API functions
+   - Should never be manually edited
+   - Regenerated on every build
+
+2. **MCP Tools Layer** (`src/tools/`):
+   - Manually crafted MCP tool definitions
+   - Uses generated client for API calls
+   - Contains business logic, filtering, sorting
+   - This is where development and testing happens
+
+**Example:**
+
+```typescript
+// src/tools/items.ts - Manual MCP tool implementation
+import { listItems } from "../client.js";  // Generated client function
+
+case "list_items": {
+  // Use generated client with type-safe parameters
+  const { data, error, response } = await listItems({
+    path: { list_id: args.list_id as string },
+    query: { status: args.status as any }
+  });
+
+  if (error) {
+    throw createActionableError(response.status, error as any, {...});
+  }
+
+  return data;
+}
+```
+
+### Versioning and Releases
+
+This project uses [Changesets](https://github.com/changesets/changesets) for version management and automated releases. See [.changeset/README.md](.changeset/README.md) for detailed instructions on creating releases.
+
 ### Using with Local Mono API
 
 Set `MONO_API_URL` to your local development server:
