@@ -97,6 +97,23 @@ Use this when:
   },
 ];
 
+/**
+ * Executes list-related MCP tools (list_lists, create_list, get_list).
+ *
+ * Handles all operations related to todo lists including listing, creation, and retrieval.
+ * Converts API errors into actionable errors with recovery guidance.
+ *
+ * @param name - Name of the list tool to execute
+ * @param args - Tool-specific arguments
+ * @returns Promise resolving to the API response data
+ * @throws ActionableError if the API request fails
+ *
+ * @example
+ * ```typescript
+ * const lists = await executeListTool("list_lists", { page_size: 10 });
+ * const newList = await executeListTool("create_list", { title: "Work Tasks" });
+ * ```
+ */
 export async function executeListTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   switch (name) {
     case "list_lists": {

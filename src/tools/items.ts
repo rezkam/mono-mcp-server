@@ -222,6 +222,24 @@ Returns the updated item with new status.`,
   },
 ];
 
+/**
+ * Executes item-related MCP tools (list_items, create_item, update_item, complete_item).
+ *
+ * Handles all operations related to todo items including listing, creation, updates, and completion.
+ * Converts API errors into actionable errors with recovery guidance.
+ *
+ * @param name - Name of the item tool to execute
+ * @param args - Tool-specific arguments
+ * @returns Promise resolving to the API response data
+ * @throws ActionableError if the API request fails
+ *
+ * @example
+ * ```typescript
+ * const items = await executeItemTool("list_items", { list_id: "123", status: ["todo"] });
+ * const newItem = await executeItemTool("create_item", { list_id: "123", title: "Buy milk" });
+ * await executeItemTool("complete_item", { list_id: "123", item_id: "456" });
+ * ```
+ */
 export async function executeItemTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   switch (name) {
     case "list_items": {

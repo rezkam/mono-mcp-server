@@ -203,6 +203,27 @@ function parseDurationToHours(duration?: string): number {
   return hours + minutes / 60;
 }
 
+/**
+ * Executes planning and productivity MCP tools.
+ *
+ * Provides high-level task management operations including getting plannable tasks,
+ * finding overdue items, viewing upcoming due dates, filtering by tags, analyzing
+ * workload, and quick task creation.
+ *
+ * These tools aggregate and filter tasks to help with daily planning and workload management.
+ *
+ * @param name - Name of the planning tool to execute
+ * @param args - Tool-specific arguments
+ * @returns Promise resolving to the tool execution result
+ * @throws ActionableError if the API request fails
+ *
+ * @example
+ * ```typescript
+ * const tasks = await executePlanningTool("get_plannable_tasks", { max_items: 10 });
+ * const overdue = await executePlanningTool("get_overdue_tasks", {});
+ * const summary = await executePlanningTool("get_workload_summary", { list_id: "123" });
+ * ```
+ */
 export async function executePlanningTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   switch (name) {
     case "get_plannable_tasks": {

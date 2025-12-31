@@ -194,6 +194,28 @@ Use this when:
   },
 ];
 
+/**
+ * Executes recurring template-related MCP tools.
+ *
+ * Handles operations for managing recurring task templates including listing,
+ * creation, retrieval, updates, and deletion. Templates automatically generate
+ * task instances based on a schedule (daily, weekly, monthly, etc.).
+ *
+ * @param name - Name of the recurring tool to execute
+ * @param args - Tool-specific arguments
+ * @returns Promise resolving to the API response data
+ * @throws ActionableError if the API request fails
+ *
+ * @example
+ * ```typescript
+ * const templates = await executeRecurringTool("list_recurring_templates", { list_id: "123" });
+ * const template = await executeRecurringTool("create_recurring_template", {
+ *   list_id: "123",
+ *   title: "Daily Standup",
+ *   recurrence_pattern: "weekdays"
+ * });
+ * ```
+ */
 export async function executeRecurringTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   switch (name) {
     case "list_recurring_templates": {

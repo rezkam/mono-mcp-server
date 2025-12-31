@@ -1,5 +1,33 @@
 import type { ActionableError, ErrorResponse, RequestContext } from "./types.js";
 
+/**
+ * Converts API error responses into actionable, user-friendly error messages with recovery guidance.
+ *
+ * This function translates raw API errors into structured ActionableError objects that include:
+ * - Clear error messages suitable for end users
+ * - Specific field-level validation guidance
+ * - Concrete recovery actions and next steps
+ * - Valid values for enum fields when applicable
+ *
+ * @param status - HTTP status code from the API response (e.g., 400, 404, 409, 500)
+ * @param apiError - Raw error response from the Mono API containing error code, message, and details
+ * @param context - Request context including operation name, parameters, and resource identifiers
+ * @returns Actionable error object with user-friendly message, suggestion, and recovery action
+ *
+ * @example
+ * ```typescript
+ * const { error, response } = await createItem({ body: { title: "" } });
+ * if (error) {
+ *   const actionable = createActionableError(response.status, error, {
+ *     operation: "create_item",
+ *     params: { title: "" }
+ *   });
+ *   // actionable.error: "Title is required"
+ *   // actionable.suggestion: "Every task and list must have a title..."
+ *   // actionable.recovery_action: "Add a 'title' field with 1-255 characters."
+ * }
+ * ```
+ */
 export function createActionableError(
   status: number,
   apiError: ErrorResponse,

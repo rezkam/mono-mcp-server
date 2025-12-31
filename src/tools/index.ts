@@ -12,7 +12,22 @@ export const allTools: Tool[] = [
   ...recurringTools,
 ];
 
-// Execute tool by name
+/**
+ * Executes an MCP tool by name with the provided arguments.
+ *
+ * Routes tool execution to the appropriate domain-specific handler
+ * (planning, lists, items, or recurring templates).
+ *
+ * @param name - Name of the MCP tool to execute (e.g., "create_item", "list_lists")
+ * @param args - Arguments for the tool execution
+ * @returns Promise resolving to the tool execution result
+ * @throws Error if the tool name is not recognized
+ *
+ * @example
+ * ```typescript
+ * const result = await executeTool("list_lists", { page_size: 10 });
+ * ```
+ */
 export async function executeTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   // Check planning tools
   if (planningTools.find((t) => t.name === name)) {
