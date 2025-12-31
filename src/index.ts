@@ -87,9 +87,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+
   console.error(`Mono MCP server running`);
   console.error(`API Base: ${MONO_API_BASE}`);
   console.error(`Tools available: ${allTools.length}`);
+  console.error(`Request timeout: ${process.env.MONO_TIMEOUT_MS || '1500'}ms`);
+  console.error(`Max retries: ${process.env.MONO_MAX_RETRIES || '3'}`);
 }
 
 main().catch((error) => {

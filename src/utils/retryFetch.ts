@@ -15,11 +15,25 @@ export interface RetryConfig {
   retryableStatuses: number[];
 }
 
+/**
+ * Default retry configuration.
+ *
+ * Retry timeline (worst case):
+ * - Attempt 0: 1.5s timeout
+ * - Delay: 0-1s (avg 0.5s)
+ * - Attempt 1: 1.5s timeout
+ * - Delay: 0-2s (avg 1s)
+ * - Attempt 2: 1.5s timeout
+ * - Delay: 0-4s (avg 2s)
+ * - Attempt 3: 1.5s timeout (final)
+ *
+ * Total: ~9.5s average, ~13s worst case
+ */
 export const DEFAULT_RETRY_CONFIG: RetryConfig = {
-  maxRetries: 1,
+  maxRetries: 3,
   baseDelayMs: 1000,
-  maxDelayMs: 2000,
-  timeoutMs: 2500,
+  maxDelayMs: 4000,
+  timeoutMs: 1500,
   retryableStatuses: [429, 500, 502, 503, 504],
 };
 

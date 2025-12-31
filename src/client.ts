@@ -12,10 +12,10 @@ if (!MONO_API_KEY) {
 
 // Retry configuration from environment variables
 const retryConfig: RetryConfig = {
-  maxRetries: parseInt(process.env.MONO_MAX_RETRIES || "1"),
+  maxRetries: parseInt(process.env.MONO_MAX_RETRIES || "3"),
   baseDelayMs: parseInt(process.env.MONO_BASE_DELAY_MS || "1000"),
-  maxDelayMs: parseInt(process.env.MONO_MAX_DELAY_MS || "2000"),
-  timeoutMs: parseInt(process.env.MONO_TIMEOUT_MS || "2500"),
+  maxDelayMs: parseInt(process.env.MONO_MAX_DELAY_MS || "4000"),
+  timeoutMs: parseInt(process.env.MONO_TIMEOUT_MS || "1500"),
   retryableStatuses: [429, 500, 502, 503, 504],
 };
 
