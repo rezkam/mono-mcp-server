@@ -1,13 +1,12 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { monoFetch, buildQueryString } from "../client.js";
-import type {
-  CreateRecurringTemplateRequest,
-  CreateRecurringTemplateResponse,
-  GetRecurringTemplateResponse,
-  UpdateRecurringTemplateRequest,
-  UpdateRecurringTemplateResponse,
-  ListRecurringTemplatesResponse,
-} from "../types.js";
+import {
+  listRecurringTemplates,
+  createRecurringTemplate,
+  getRecurringTemplate,
+  updateRecurringTemplate,
+  deleteRecurringTemplate,
+} from "../client.js";
+import { createActionableError } from "../errors.js";
 
 export const recurringTools: Tool[] = [
   {
@@ -198,34 +197,57 @@ Use this when:
 export async function executeRecurringTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   switch (name) {
     case "list_recurring_templates": {
-      const query = buildQueryString({
-        active_only: args.active_only,
+      const { data, error, response } = await listRecurringTemplates({
+        path: { list_id: args.list_id as string },
+        query: {
+          active_only: args.active_only as boolean | undefined,
+        },
       });
-      return monoFetch<ListRecurringTemplatesResponse>(
-        `/v1/lists/${args.list_id}/recurring-templates${query}`,
-        {},
-        { operation: "list_recurring_templates", params: args }
-      );
+
+      if (error) {
+        throw createActionableError(response.status, error as any, {
+          operation: "list_recurring_templates",
+          params: args,
+        });
+      }
+
+      return data;
     }
 
     case "create_recurring_template": {
       const { list_id, ...templateData } = args;
-      return monoFetch<CreateRecurringTemplateResponse>(
-        `/v1/lists/${list_id}/recurring-templates`,
-        {
-          method: "POST",
-          body: JSON.stringify(templateData as unknown as CreateRecurringTemplateRequest),
-        },
-        { operation: "create_recurring_template", params: args }
-      );
+      const { data, error, response } = await createRecurringTemplate({
+        path: { list_id: list_id as string },
+        body: templateData as any,
+      });
+
+      if (error) {
+        throw createActionableError(response.status, error as any, {
+          operation: "create_recurring_template",
+          params: args,
+        });
+      }
+
+      return data;
     }
 
-    case "get_recurring_template":
-      return monoFetch<GetRecurringTemplateResponse>(
-        `/v1/lists/${args.list_id}/recurring-templates/${args.template_id}`,
-        {},
-        { operation: "get_recurring_template", params: args }
-      );
+    case "get_recurring_template": {
+      const { data, error, response } = await getRecurringTemplate({
+        path: {
+          list_id: args.list_id as string,
+          template_id: args.template_id as string,
+        },
+      });
+
+      if (error) {
+        throw createActionableError(response.status, error as any, {
+          operation: "get_recurring_template",
+          params: args,
+        });
+      }
+
+      return data;
+    }
 
     case "update_recurring_template": {
       const { list_id, template_id, update_mask, ...fields } = args;
@@ -235,24 +257,45 @@ export async function executeRecurringTool(name: string, args: Record<string, un
           template[field] = fields[field];
         }
       }
-      return monoFetch<UpdateRecurringTemplateResponse>(
-        `/v1/lists/${list_id}/recurring-templates/${template_id}`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({ update_mask, template } as UpdateRecurringTemplateRequest),
+
+      const { data, error, response } = await updateRecurringTemplate({
+        path: {
+          list_id: list_id as string,
+          template_id: template_id as string,
         },
-        { operation: "update_recurring_template", params: args }
-      );
+        body: {
+          update_mask: update_mask as any,
+          template,
+        },
+      });
+
+      if (error) {
+        throw createActionableError(response.status, error as any, {
+          operation: "update_recurring_template",
+          params: args,
+        });
+      }
+
+      return data;
     }
 
-    case "delete_recurring_template":
-      return monoFetch<null>(
-        `/v1/lists/${args.list_id}/recurring-templates/${args.template_id}`,
-        {
-          method: "DELETE",
+    case "delete_recurring_template": {
+      const { data, error, response } = await deleteRecurringTemplate({
+        path: {
+          list_id: args.list_id as string,
+          template_id: args.template_id as string,
         },
-        { operation: "delete_recurring_template", params: args }
-      );
+      });
+
+      if (error) {
+        throw createActionableError(response.status, error as any, {
+          operation: "delete_recurring_template",
+          params: args,
+        });
+      }
+
+      return data;
+    }
 
     default:
       throw new Error(`Unknown recurring tool: ${name}`);

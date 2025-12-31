@@ -1,116 +1,113 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { monoFetch, buildQueryString } from "../client.js";
-import type { ListItemsResponse, ListListsResponse, TodoItem, CreateItemResponse, CreateItemRequest } from "../types.js";
+import { listItems, listLists, createItem, type TodoItem } from "../client.js";
+import { createActionableError } from "../errors.js";
 
 export const planningTools: Tool[] = [
   {
     name: "get_plannable_tasks",
-    description: `Get tasks available to work on for daily planning.
+    description: `Get tasks that can be worked on now (todo, in_progress, optionally blocked).
 
-Returns tasks with status: todo, in_progress, blocked.
-Excludes: done, archived, cancelled.
-Sorted by: priority (urgent→high→medium→low), then due_time.
+Filters out done/archived/cancelled tasks and sorts by priority then due date.
+Can query a specific list or aggregate across all lists.
 
 Use this when:
-- User asks "what should I work on today?"
-- Planning a work session or daily schedule
-- Need to see actionable tasks across lists
-- Starting daily planning workflow
+- User asks "what should I work on?"
+- "show me my tasks"
+- Planning daily work
+- Need to prioritize tasks
 
-Returns estimated_duration for time budgeting.`,
+Returns tasks sorted by priority (urgent > high > medium > low) then by due date.`,
     inputSchema: {
       type: "object",
       properties: {
         list_id: {
           type: "string",
-          description: "Optional: filter to specific list. If omitted, searches all lists.",
-        },
-        max_items: {
-          type: "number",
-          description: "Limit results (default: 50)",
+          description: "Limit to specific list (optional, omit to search all lists)",
         },
         include_blocked: {
           type: "boolean",
-          description: "Include blocked items in results (default: true)",
+          description: "Include blocked tasks (default: true)",
+        },
+        max_items: {
+          type: "number",
+          description: "Maximum number of tasks to return (default: 50)",
         },
       },
     },
   },
   {
     name: "get_overdue_tasks",
-    description: `Get tasks that are past their due date.
+    description: `Get tasks that are past their due date and not yet completed.
 
-Returns tasks where due_time < now and status is not done/archived/cancelled.
-Sorted by: how overdue (oldest first).
+Shows tasks where due_time < now and status is todo/in_progress/blocked.
+Sorted by due date (oldest overdue first).
 
 Use this when:
-- Starting daily planning (address overdue first)
-- User asks "what am I behind on?" or "what's overdue?"
-- Need to identify urgent catch-up work
-- Prioritizing tasks by urgency
+- User asks "what's overdue?"
+- Need to see urgent catch-up work
+- Daily review of missed deadlines
 
-Critical for responsible task management.`,
+Returns overdue tasks sorted by due date.`,
     inputSchema: {
       type: "object",
       properties: {
         list_id: {
           type: "string",
-          description: "Optional: filter to specific list",
+          description: "Limit to specific list (optional)",
         },
       },
     },
   },
   {
     name: "get_tasks_due_soon",
-    description: `Get tasks due within a time window.
+    description: `Get tasks due within the next N days.
 
-Returns tasks with due_time between now and now + days_ahead.
-Excludes done/archived/cancelled.
-Sorted by: due_time ascending (soonest first).
+Shows upcoming tasks that need attention soon.
+Sorted by due date (soonest first).
 
 Use this when:
-- Planning the week ahead
-- User asks "what's coming up?" or "what's due this week?"
-- Need to see upcoming deadlines
-- Proactive planning to avoid last-minute rushes`,
+- User asks "what's due this week?"
+- "show me tasks due in the next 3 days"
+- Planning upcoming work
+
+Returns tasks due soon sorted by due date.`,
     inputSchema: {
       type: "object",
       properties: {
-        days_ahead: {
-          type: "number",
-          description: "Days to look ahead (default: 7 for one week)",
-        },
         list_id: {
           type: "string",
-          description: "Optional: filter to specific list",
+          description: "Limit to specific list (optional)",
+        },
+        days_ahead: {
+          type: "number",
+          description: "Number of days to look ahead (default: 7)",
         },
       },
     },
   },
   {
     name: "get_tasks_by_tag",
-    description: `Get tasks filtered by tag/context.
+    description: `Get all tasks with a specific tag.
 
-Returns plannable tasks (todo, in_progress, blocked) that have the specified tag.
-Sorted by: priority, then due_time.
+Useful for viewing tasks by project, context, or category.
+Sorted by priority then due date.
 
 Use this when:
-- User wants to focus on a context: "show me work tasks"
-- Planning around location: "what can I do at home?"
-- Batching similar tasks: "all my errands"
-- Context-based time blocking
+- User asks "show me all 'work' tasks"
+- Need to see tasks for a specific project
+- Filtering by context (home, office, errands)
 
-Combine with estimated durations for context-based planning.`,
+Returns tagged tasks sorted by priority.`,
     inputSchema: {
       type: "object",
       properties: {
+        list_id: {
+          type: "string",
+          description: "Limit to specific list (optional)",
+        },
         tag: {
           type: "string",
           description: "Tag to filter by (required)",
-        },
-        list_id: {
-          type: "string",
-          description: "Optional: filter to specific list",
         },
       },
       required: ["tag"],
@@ -118,53 +115,53 @@ Combine with estimated durations for context-based planning.`,
   },
   {
     name: "get_workload_summary",
-    description: `Get aggregated view of pending work.
+    description: `Get a summary of current workload with task counts and estimated hours.
 
-Returns summary of plannable tasks:
-- Total count and estimated hours
-- Breakdown by priority level (urgent: X tasks, Y hours; high: ...)
-- Breakdown by tag
+Aggregates tasks by priority and tag, showing:
+- Total task count
+- Estimated hours of work
 - Overdue count
 - Due this week count
+- Breakdown by priority
+- Breakdown by tag
 
 Use this when:
 - User asks "how much work do I have?"
-- Assessing if user can take on new tasks
-- Providing overview before detailed planning
-- Answering capacity questions
+- Need capacity planning insight
+- Want to see workload distribution
+- Time budget analysis
 
-Helps answer capacity questions without listing every task.`,
+Returns aggregated statistics about the current workload.`,
     inputSchema: {
       type: "object",
       properties: {
         list_id: {
           type: "string",
-          description: "Optional: filter to specific list",
+          description: "Limit to specific list (optional)",
         },
       },
     },
   },
   {
     name: "quick_add_task",
-    description: `Quickly add a task with smart defaults.
+    description: `Quickly add a task with common fields pre-filled.
 
-Creates a task with sensible defaults:
-- Status: todo
-- Priority: medium (unless specified)
+Convenience wrapper for create_item with sensible defaults:
+- Priority defaults to medium
+- No scheduling fields required
 
 Use this when:
-- User quickly mentions a task to remember
-- "Add buy groceries to my personal list"
-- Rapid task capture during conversation
-- Don't need to specify all details upfront
+- User wants to quickly capture a task
+- "add a task to buy milk"
+- Simple task creation without ceremony
 
-For detailed task creation, use create_item instead.`,
+Returns the created task.`,
     inputSchema: {
       type: "object",
       properties: {
         list_id: {
           type: "string",
-          description: "Which list to add to (required)",
+          description: "UUID of the list (required)",
         },
         title: {
           type: "string",
@@ -173,22 +170,22 @@ For detailed task creation, use create_item instead.`,
         priority: {
           type: "string",
           enum: ["low", "medium", "high", "urgent"],
-          description: "Priority level (optional, defaults to medium)",
+          description: "Priority (default: medium)",
         },
         due_time: {
           type: "string",
-          description: "ISO 8601 datetime (optional)",
+          description: "Optional due date/time (ISO 8601)",
         },
         tags: {
           type: "array",
           items: {
             type: "string",
           },
-          description: "Tags (optional)",
+          description: "Optional tags",
         },
         estimated_duration: {
           type: "string",
-          description: "ISO 8601 duration like 'PT1H30M' (optional)",
+          description: "Optional estimated duration (ISO 8601 duration)",
         },
       },
       required: ["list_id", "title"],
@@ -196,16 +193,13 @@ For detailed task creation, use create_item instead.`,
   },
 ];
 
-// Helper to parse ISO 8601 duration to hours
-function parseDurationToHours(duration: string | undefined): number {
+function parseDurationToHours(duration?: string): number {
   if (!duration) return 0;
-
-  // Simple parser for PT format (PT1H30M, PT2H, PT30M)
+  // Parse ISO 8601 duration (e.g., PT2H30M = 2.5 hours)
   const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
   if (!match) return 0;
-
-  const hours = parseInt(match[1] || "0", 10);
-  const minutes = parseInt(match[2] || "0", 10);
+  const hours = parseInt(match[1] || "0");
+  const minutes = parseInt(match[2] || "0");
   return hours + minutes / 60;
 }
 
@@ -216,42 +210,57 @@ export async function executePlanningTool(name: string, args: Record<string, unk
 
       if (args.list_id) {
         // Query specific list
-        const query = buildQueryString({
-          status: statuses,
-          sort_by: "priority",
-          sort_dir: "desc",
-          page_size: args.max_items || 50,
+        const { data, error, response } = await listItems({
+          path: { list_id: args.list_id as string },
+          query: {
+            status: statuses as any,
+            sort_by: "priority",
+            sort_dir: "desc",
+            page_size: (args.max_items as number) || 50,
+          },
         });
-        const response = await monoFetch<ListItemsResponse>(
-          `/v1/lists/${args.list_id}/items${query}`,
-          {},
-          { operation: "get_plannable_tasks", params: args }
-        );
-        return response;
+
+        if (error) {
+          throw createActionableError(response.status, error as any, {
+            operation: "get_plannable_tasks",
+            params: args,
+          });
+        }
+
+        return data;
       } else {
         // Query all lists
-        const listsResponse = await monoFetch<ListListsResponse>(
-          "/v1/lists",
-          {},
-          { operation: "get_plannable_tasks", params: args }
-        );
+        const { data: listsData, error: listsError, response: listsResponse } = await listLists({});
+
+        if (listsError) {
+          throw createActionableError(listsResponse.status, listsError as any, {
+            operation: "get_plannable_tasks",
+            params: args,
+          });
+        }
 
         const allItems: TodoItem[] = [];
-        for (const list of listsResponse.lists) {
-          const query = buildQueryString({
-            status: statuses,
-            page_size: 100,
+        for (const list of listsData!.lists!) {
+          const { data: itemsData, error: itemsError, response: itemsResponse } = await listItems({
+            path: { list_id: list.id! },
+            query: {
+              status: statuses as any,
+              page_size: 100,
+            },
           });
-          const itemsResponse = await monoFetch<ListItemsResponse>(
-            `/v1/lists/${list.id}/items${query}`,
-            {},
-            { operation: "get_plannable_tasks", params: args }
-          );
-          allItems.push(...itemsResponse.items);
+
+          if (itemsError) {
+            throw createActionableError(itemsResponse.status, itemsError as any, {
+              operation: "get_plannable_tasks",
+              params: args,
+            });
+          }
+
+          allItems.push(...(itemsData!.items || []));
         }
 
         // Sort by priority then due_time
-        const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+        const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
         allItems.sort((a, b) => {
           const aPrio = priorityOrder[a.priority || "medium"];
           const bPrio = priorityOrder[b.priority || "medium"];
@@ -275,39 +284,53 @@ export async function executePlanningTool(name: string, args: Record<string, unk
       const statuses = ["todo", "in_progress", "blocked"];
 
       if (args.list_id) {
-        const query = buildQueryString({
-          status: statuses,
-          sort_by: "due_time",
-          sort_dir: "asc",
-          page_size: 100,
+        const { data, error, response } = await listItems({
+          path: { list_id: args.list_id as string },
+          query: {
+            status: statuses as any,
+            sort_by: "due_time",
+            sort_dir: "asc",
+            page_size: 100,
+          },
         });
-        const response = await monoFetch<ListItemsResponse>(
-          `/v1/lists/${args.list_id}/items${query}`,
-          {},
-          { operation: "get_overdue_tasks", params: args }
-        );
 
-        const overdue = response.items.filter((item) => item.due_time && item.due_time < now);
+        if (error) {
+          throw createActionableError(response.status, error as any, {
+            operation: "get_overdue_tasks",
+            params: args,
+          });
+        }
+
+        const overdue = (data!.items || []).filter((item) => item.due_time && item.due_time < now);
         return { items: overdue };
       } else {
-        const listsResponse = await monoFetch<ListListsResponse>(
-          "/v1/lists",
-          {},
-          { operation: "get_overdue_tasks", params: args }
-        );
+        const { data: listsData, error: listsError, response: listsResponse } = await listLists({});
+
+        if (listsError) {
+          throw createActionableError(listsResponse.status, listsError as any, {
+            operation: "get_overdue_tasks",
+            params: args,
+          });
+        }
 
         const allOverdue: TodoItem[] = [];
-        for (const list of listsResponse.lists) {
-          const query = buildQueryString({
-            status: statuses,
-            page_size: 100,
+        for (const list of listsData!.lists!) {
+          const { data: itemsData, error: itemsError, response: itemsResponse } = await listItems({
+            path: { list_id: list.id! },
+            query: {
+              status: statuses as any,
+              page_size: 100,
+            },
           });
-          const itemsResponse = await monoFetch<ListItemsResponse>(
-            `/v1/lists/${list.id}/items${query}`,
-            {},
-            { operation: "get_overdue_tasks", params: args }
-          );
-          const overdue = itemsResponse.items.filter((item) => item.due_time && item.due_time < now);
+
+          if (itemsError) {
+            throw createActionableError(itemsResponse.status, itemsError as any, {
+              operation: "get_overdue_tasks",
+              params: args,
+            });
+          }
+
+          const overdue = (itemsData!.items || []).filter((item) => item.due_time && item.due_time < now);
           allOverdue.push(...overdue);
         }
 
@@ -328,39 +351,53 @@ export async function executePlanningTool(name: string, args: Record<string, unk
       const statuses = ["todo", "in_progress", "blocked"];
 
       if (args.list_id) {
-        const query = buildQueryString({
-          status: statuses,
-          sort_by: "due_time",
-          sort_dir: "asc",
-          page_size: 100,
+        const { data, error, response } = await listItems({
+          path: { list_id: args.list_id as string },
+          query: {
+            status: statuses as any,
+            sort_by: "due_time",
+            sort_dir: "asc",
+            page_size: 100,
+          },
         });
-        const response = await monoFetch<ListItemsResponse>(
-          `/v1/lists/${args.list_id}/items${query}`,
-          {},
-          { operation: "get_tasks_due_soon", params: args }
-        );
 
-        const dueSoon = response.items.filter((item) => item.due_time && item.due_time >= nowISO && item.due_time <= future);
+        if (error) {
+          throw createActionableError(response.status, error as any, {
+            operation: "get_tasks_due_soon",
+            params: args,
+          });
+        }
+
+        const dueSoon = (data!.items || []).filter((item) => item.due_time && item.due_time >= nowISO && item.due_time <= future);
         return { items: dueSoon };
       } else {
-        const listsResponse = await monoFetch<ListListsResponse>(
-          "/v1/lists",
-          {},
-          { operation: "get_tasks_due_soon", params: args }
-        );
+        const { data: listsData, error: listsError, response: listsResponse } = await listLists({});
+
+        if (listsError) {
+          throw createActionableError(listsResponse.status, listsError as any, {
+            operation: "get_tasks_due_soon",
+            params: args,
+          });
+        }
 
         const allDueSoon: TodoItem[] = [];
-        for (const list of listsResponse.lists) {
-          const query = buildQueryString({
-            status: statuses,
-            page_size: 100,
+        for (const list of listsData!.lists!) {
+          const { data: itemsData, error: itemsError, response: itemsResponse } = await listItems({
+            path: { list_id: list.id! },
+            query: {
+              status: statuses as any,
+              page_size: 100,
+            },
           });
-          const itemsResponse = await monoFetch<ListItemsResponse>(
-            `/v1/lists/${list.id}/items${query}`,
-            {},
-            { operation: "get_tasks_due_soon", params: args }
-          );
-          const dueSoon = itemsResponse.items.filter((item) => item.due_time && item.due_time >= nowISO && item.due_time <= future);
+
+          if (itemsError) {
+            throw createActionableError(itemsResponse.status, itemsError as any, {
+              operation: "get_tasks_due_soon",
+              params: args,
+            });
+          }
+
+          const dueSoon = (itemsData!.items || []).filter((item) => item.due_time && item.due_time >= nowISO && item.due_time <= future);
           allDueSoon.push(...dueSoon);
         }
 
@@ -377,42 +414,58 @@ export async function executePlanningTool(name: string, args: Record<string, unk
       const statuses = ["todo", "in_progress", "blocked"];
 
       if (args.list_id) {
-        const query = buildQueryString({
-          status: statuses,
-          tags: [args.tag as string],
-          sort_by: "priority",
-          sort_dir: "desc",
-          page_size: 100,
+        const { data, error, response } = await listItems({
+          path: { list_id: args.list_id as string },
+          query: {
+            status: statuses as any,
+            tags: [args.tag as string],
+            sort_by: "priority",
+            sort_dir: "desc",
+            page_size: 100,
+          },
         });
-        return monoFetch<ListItemsResponse>(
-          `/v1/lists/${args.list_id}/items${query}`,
-          {},
-          { operation: "get_tasks_by_tag", params: args }
-        );
+
+        if (error) {
+          throw createActionableError(response.status, error as any, {
+            operation: "get_tasks_by_tag",
+            params: args,
+          });
+        }
+
+        return data;
       } else {
-        const listsResponse = await monoFetch<ListListsResponse>(
-          "/v1/lists",
-          {},
-          { operation: "get_tasks_by_tag", params: args }
-        );
+        const { data: listsData, error: listsError, response: listsResponse } = await listLists({});
+
+        if (listsError) {
+          throw createActionableError(listsResponse.status, listsError as any, {
+            operation: "get_tasks_by_tag",
+            params: args,
+          });
+        }
 
         const allItems: TodoItem[] = [];
-        for (const list of listsResponse.lists) {
-          const query = buildQueryString({
-            status: statuses,
-            tags: [args.tag as string],
-            page_size: 100,
+        for (const list of listsData!.lists!) {
+          const { data: itemsData, error: itemsError, response: itemsResponse } = await listItems({
+            path: { list_id: list.id! },
+            query: {
+              status: statuses as any,
+              tags: [args.tag as string],
+              page_size: 100,
+            },
           });
-          const itemsResponse = await monoFetch<ListItemsResponse>(
-            `/v1/lists/${list.id}/items${query}`,
-            {},
-            { operation: "get_tasks_by_tag", params: args }
-          );
-          allItems.push(...itemsResponse.items);
+
+          if (itemsError) {
+            throw createActionableError(itemsResponse.status, itemsError as any, {
+              operation: "get_tasks_by_tag",
+              params: args,
+            });
+          }
+
+          allItems.push(...(itemsData!.items || []));
         }
 
         // Sort by priority
-        const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+        const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
         allItems.sort((a, b) => {
           const aPrio = priorityOrder[a.priority || "medium"];
           const bPrio = priorityOrder[b.priority || "medium"];
@@ -437,34 +490,49 @@ export async function executePlanningTool(name: string, args: Record<string, unk
       let allItems: TodoItem[] = [];
 
       if (args.list_id) {
-        const query = buildQueryString({
-          status: statuses,
-          page_size: 100,
-        });
-        const response = await monoFetch<ListItemsResponse>(
-          `/v1/lists/${args.list_id}/items${query}`,
-          {},
-          { operation: "get_workload_summary", params: args }
-        );
-        allItems = response.items;
-      } else {
-        const listsResponse = await monoFetch<ListListsResponse>(
-          "/v1/lists",
-          {},
-          { operation: "get_workload_summary", params: args }
-        );
-
-        for (const list of listsResponse.lists) {
-          const query = buildQueryString({
-            status: statuses,
+        const { data, error, response } = await listItems({
+          path: { list_id: args.list_id as string },
+          query: {
+            status: statuses as any,
             page_size: 100,
+          },
+        });
+
+        if (error) {
+          throw createActionableError(response.status, error as any, {
+            operation: "get_workload_summary",
+            params: args,
           });
-          const itemsResponse = await monoFetch<ListItemsResponse>(
-            `/v1/lists/${list.id}/items${query}`,
-            {},
-            { operation: "get_workload_summary", params: args }
-          );
-          allItems.push(...itemsResponse.items);
+        }
+
+        allItems = data!.items || [];
+      } else {
+        const { data: listsData, error: listsError, response: listsResponse } = await listLists({});
+
+        if (listsError) {
+          throw createActionableError(listsResponse.status, listsError as any, {
+            operation: "get_workload_summary",
+            params: args,
+          });
+        }
+
+        for (const list of listsData!.lists!) {
+          const { data: itemsData, error: itemsError, response: itemsResponse } = await listItems({
+            path: { list_id: list.id! },
+            query: {
+              status: statuses as any,
+              page_size: 100,
+            },
+          });
+
+          if (itemsError) {
+            throw createActionableError(itemsResponse.status, itemsError as any, {
+              operation: "get_workload_summary",
+              params: args,
+            });
+          }
+
+          allItems.push(...(itemsData!.items || []));
         }
       }
 
@@ -497,12 +565,14 @@ export async function executePlanningTool(name: string, args: Record<string, unk
           dueThisWeekCount++;
         }
 
-        for (const tag of item.tags) {
-          if (!byTag[tag]) {
-            byTag[tag] = { count: 0, hours: 0 };
+        if (item.tags) {
+          for (const tag of item.tags) {
+            if (!byTag[tag]) {
+              byTag[tag] = { count: 0, hours: 0 };
+            }
+            byTag[tag].count++;
+            byTag[tag].hours += hours;
           }
-          byTag[tag].count++;
-          byTag[tag].hours += hours;
         }
       }
 
@@ -517,22 +587,25 @@ export async function executePlanningTool(name: string, args: Record<string, unk
     }
 
     case "quick_add_task": {
-      const taskData: CreateItemRequest = {
-        title: args.title as string,
-        priority: (args.priority as "low" | "medium" | "high" | "urgent") || "medium",
-        due_time: args.due_time as string | undefined,
-        tags: args.tags as string[] | undefined,
-        estimated_duration: args.estimated_duration as string | undefined,
-      };
-
-      return monoFetch<CreateItemResponse>(
-        `/v1/lists/${args.list_id}/items`,
-        {
-          method: "POST",
-          body: JSON.stringify(taskData),
+      const { data, error, response } = await createItem({
+        path: { list_id: args.list_id as string },
+        body: {
+          title: args.title as string,
+          priority: (args.priority as any) || "medium",
+          due_time: args.due_time as string | undefined,
+          tags: args.tags as string[] | undefined,
+          estimated_duration: args.estimated_duration as string | undefined,
         },
-        { operation: "quick_add_task", params: args }
-      );
+      });
+
+      if (error) {
+        throw createActionableError(response.status, error as any, {
+          operation: "quick_add_task",
+          params: args,
+        });
+      }
+
+      return data;
     }
 
     default:

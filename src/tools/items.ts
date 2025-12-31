@@ -1,12 +1,6 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { monoFetch, buildQueryString } from "../client.js";
-import type {
-  CreateItemRequest,
-  CreateItemResponse,
-  UpdateItemRequest,
-  UpdateItemResponse,
-  ListItemsResponse,
-} from "../types.js";
+import { listItems, createItem, updateItem } from "../client.js";
+import { createActionableError } from "../errors.js";
 
 export const itemTools: Tool[] = [
   {
@@ -231,32 +225,44 @@ Returns the updated item with new status.`,
 export async function executeItemTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   switch (name) {
     case "list_items": {
-      const query = buildQueryString({
-        status: args.status,
-        priority: args.priority,
-        tags: args.tags,
-        sort_by: args.sort_by,
-        sort_dir: args.sort_dir,
-        page_size: args.page_size,
-        page_token: args.page_token,
+      const { data, error, response } = await listItems({
+        path: { list_id: args.list_id as string },
+        query: {
+          status: args.status as any,
+          priority: args.priority as any,
+          tags: args.tags as string[] | undefined,
+          sort_by: args.sort_by as any,
+          sort_dir: args.sort_dir as "asc" | "desc" | undefined,
+          page_size: args.page_size as number | undefined,
+          page_token: args.page_token as string | undefined,
+        },
       });
-      return monoFetch<ListItemsResponse>(
-        `/v1/lists/${args.list_id}/items${query}`,
-        {},
-        { operation: "list_items", params: args }
-      );
+
+      if (error) {
+        throw createActionableError(response.status, error as any, {
+          operation: "list_items",
+          params: args,
+        });
+      }
+
+      return data;
     }
 
     case "create_item": {
       const { list_id, ...itemData } = args;
-      return monoFetch<CreateItemResponse>(
-        `/v1/lists/${list_id}/items`,
-        {
-          method: "POST",
-          body: JSON.stringify(itemData as unknown as CreateItemRequest),
-        },
-        { operation: "create_item", params: args }
-      );
+      const { data, error, response } = await createItem({
+        path: { list_id: list_id as string },
+        body: itemData as any,
+      });
+
+      if (error) {
+        throw createActionableError(response.status, error as any, {
+          operation: "create_item",
+          params: args,
+        });
+      }
+
+      return data;
     }
 
     case "update_item": {
@@ -267,28 +273,49 @@ export async function executeItemTool(name: string, args: Record<string, unknown
           item[field] = fields[field];
         }
       }
-      return monoFetch<UpdateItemResponse>(
-        `/v1/lists/${list_id}/items/${item_id}`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({ update_mask, item } as UpdateItemRequest),
+
+      const { data, error, response } = await updateItem({
+        path: {
+          list_id: list_id as string,
+          item_id: item_id as string,
         },
-        { operation: "update_item", params: args }
-      );
+        body: {
+          update_mask: update_mask as any,
+          item,
+        },
+      });
+
+      if (error) {
+        throw createActionableError(response.status, error as any, {
+          operation: "update_item",
+          params: args,
+        });
+      }
+
+      return data;
     }
 
-    case "complete_item":
-      return monoFetch<UpdateItemResponse>(
-        `/v1/lists/${args.list_id}/items/${args.item_id}`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            update_mask: ["status"],
-            item: { status: "done" },
-          } as UpdateItemRequest),
+    case "complete_item": {
+      const { data, error, response } = await updateItem({
+        path: {
+          list_id: args.list_id as string,
+          item_id: args.item_id as string,
         },
-        { operation: "complete_item", params: args }
-      );
+        body: {
+          update_mask: ["status"],
+          item: { status: "done" },
+        },
+      });
+
+      if (error) {
+        throw createActionableError(response.status, error as any, {
+          operation: "complete_item",
+          params: args,
+        });
+      }
+
+      return data;
+    }
 
     default:
       throw new Error(`Unknown item tool: ${name}`);

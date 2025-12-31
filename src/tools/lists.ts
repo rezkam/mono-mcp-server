@@ -1,6 +1,6 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { monoFetch, buildQueryString } from "../client.js";
-import type { CreateListRequest, CreateListResponse, GetListResponse, ListListsResponse } from "../types.js";
+import { listLists, createList, getList } from "../client.js";
+import { createActionableError } from "../errors.js";
 
 export const listTools: Tool[] = [
   {
@@ -100,30 +100,61 @@ Use this when:
 export async function executeListTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   switch (name) {
     case "list_lists": {
-      const query = buildQueryString({
-        page_size: args.page_size,
-        page_token: args.page_token,
-        title_contains: args.title_contains,
-        created_after: args.created_after,
-        created_before: args.created_before,
-        sort_by: args.sort_by,
-        sort_dir: args.sort_dir,
+      const { data, error, response } = await listLists({
+        query: {
+          page_size: args.page_size as number | undefined,
+          page_token: args.page_token as string | undefined,
+          title_contains: args.title_contains as string | undefined,
+          created_after: args.created_after as string | undefined,
+          created_before: args.created_before as string | undefined,
+          sort_by: args.sort_by as "create_time" | "title" | undefined,
+          sort_dir: args.sort_dir as "asc" | "desc" | undefined,
+        },
       });
-      return monoFetch<ListListsResponse>(`/v1/lists${query}`, {}, { operation: "list_lists", params: args });
+
+      if (error) {
+        throw createActionableError(response.status, error as any, {
+          operation: "list_lists",
+          params: args,
+        });
+      }
+
+      return data;
     }
 
-    case "create_list":
-      return monoFetch<CreateListResponse>(
-        "/v1/lists",
-        {
-          method: "POST",
-          body: JSON.stringify({ title: args.title } as CreateListRequest),
+    case "create_list": {
+      const { data, error, response } = await createList({
+        body: {
+          title: args.title as string,
         },
-        { operation: "create_list", params: args }
-      );
+      });
 
-    case "get_list":
-      return monoFetch<GetListResponse>(`/v1/lists/${args.list_id}`, {}, { operation: "get_list", params: args });
+      if (error) {
+        throw createActionableError(response.status, error as any, {
+          operation: "create_list",
+          params: args,
+        });
+      }
+
+      return data;
+    }
+
+    case "get_list": {
+      const { data, error, response } = await getList({
+        path: {
+          id: args.list_id as string,
+        },
+      });
+
+      if (error) {
+        throw createActionableError(response.status, error as any, {
+          operation: "get_list",
+          params: args,
+        });
+      }
+
+      return data;
+    }
 
     default:
       throw new Error(`Unknown list tool: ${name}`);
